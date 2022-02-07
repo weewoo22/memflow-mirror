@@ -1,8 +1,11 @@
+cargo-features = ["per-package-target"]
+
 [package]
 name = "mirror-guest"
 version = "0.1.0"
 authors = ["ko1N <ko1N1337@gmail.com>"]
 edition = "2018"
+forced-target = "x86_64-pc-windows-gnu"
 
 [dependencies]
 mirror-dto = { path = "../mirror-dto" }

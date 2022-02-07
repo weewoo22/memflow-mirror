@@ -11,6 +11,7 @@
         pkgs = import nixpkgs {
           inherit system;
           overlays = [ (import rust-overlay) ];
+          # crossSystem = { config = "x86_64-w64-mingw32"; };
         };
         lib = pkgs.lib;
 
@@ -33,19 +34,37 @@
             "${memflow-kvm}/lib/" # KVM Connector
             "${memflow-win32}/lib/" # Win32 Connector plugin
           ];
+          # CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER = with pkgs.pkgsCross.mingwW64.stdenv;
+          #   "${cc}/bin/${cc.targetPrefix}gcc";
 
-          buildInputs = with pkgs; [
-            (rust-bin.stable."1.58.1".default.override {
+          # See: https://github.com/nix-community/naersk/issues/181#issuecomment-874352470
+          shellHook = ''
+            export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUSTFLAGS="-C link-args=''$(echo $NIX_LDFLAGS | tr ' ' '\n' | grep -- '^-L' | tr '\n' ' ')"
+            export NIX_LDFLAGS=
+          '';
+          buildInputs = with pkgs; with pkgsCross.mingwW64.windows; [
+            (rust-bin.selectLatestNightlyWith (toolchain: toolchain.default.override {
               # Extra toolchain components to install
               # See: https://rust-lang.github.io/rustup/concepts/components.html#components
-              extensions = [ "rust-src" "rls" ];
-            })
-            # cargo install cargo-edit requires OpenSLL
-            openssl
-            # Compiling Rust OpenSSL on Linux requires pkg-config utility to find OpenSSL
-            pkg-config
-
-            SDL2
+              extensions = [
+                "rust-src"
+                "rls"
+              ];
+              targets = [
+                # Needed for compiling Windows guest executable
+                "x86_64-pc-windows-gnu"
+              ];
+            }))
+            openssl # cargo install cargo-edit requires OpenSLL
+            pkg-config # Compiling Rust OpenSSL on Linux requires pkg-config utility to find OpenSSL
+            SDL2 # The mirror viewer requires SDL 2
+            # "= note: /nix/store/...-x86_64-w64-mingw32-binutils-.../bin/x86_64-w64-mingw32-ld: cannot find -l:libpthread.a"
+            mingw_w64_pthreads
+            # pthreads
+          ];
+          nativeBuildInputs = with pkgs; [
+            # "error: linker `x86_64-w64-mingw32-gcc` not found"
+            pkgsCross.mingwW64.stdenv.cc
           ];
         };
       }
